@@ -8,6 +8,7 @@ DEFAULT_OUTPUT = "output.txt"
 
 
 def min_num_of_drops(prototypes: int, height: int) -> int:
+
     if prototypes <= 0 or height <= 0:
         return 0
     
@@ -17,6 +18,7 @@ def min_num_of_drops(prototypes: int, height: int) -> int:
     low, high = 0, height
     
     def max_testable_floors(eggs: int, drops: int) -> int:
+
         total = 0
         comb = 1
         
@@ -42,39 +44,56 @@ def min_num_of_drops(prototypes: int, height: int) -> int:
     return low
 
 
-def read_test_case(in_path: Path) -> tuple[int, int]:
+def read_test_cases(in_path: Path) -> list[tuple[int, int]]:
+
     text = in_path.read_text(encoding="utf-8", errors="replace").strip()
     
     if not text:
         raise ValueError("Input file is empty")
     
-    parts = text.split()
-    if len(parts) < 2:
-        raise ValueError("Input must contain two integers: prototypes and height")
+    test_cases = []
     
-    try:
-        prototypes = int(parts[0])
-        height = int(parts[1])
-    except ValueError as exc:
-        raise ValueError(f"Invalid integer format: {exc}") from exc
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        
+        line = line.replace(',', ' ')
+        parts = line.split()
+        
+        if len(parts) < 2:
+            raise ValueError(f"Line {line_no}: Expected two integers (prototypes and height), got {line!r}")
+        
+        try:
+            prototypes = int(parts[0])
+            height = int(parts[1])
+        except ValueError as exc:
+            raise ValueError(f"Line {line_no}: Invalid integer format - {exc}") from exc
+        
+        if prototypes < 1:
+            raise ValueError(f"Line {line_no}: Prototypes must be at least 1, got {prototypes}")
+        
+        if height < 1:
+            raise ValueError(f"Line {line_no}: Height must be at least 1, got {height}")
+        
+        test_cases.append((prototypes, height))
     
-    if prototypes < 1:
-        raise ValueError(f"Prototypes must be at least 1, got {prototypes}")
+    if not test_cases:
+        raise ValueError("No valid test cases found in input file")
     
-    if height < 1:
-        raise ValueError(f"Height must be at least 1, got {height}")
-    
-    return prototypes, height
+    return test_cases
 
 
-def write_result(out_path: Path, prototypes: int, height: int, drops: int) -> None:
+def write_results(out_path: Path, results: list[tuple[int, int, int]]) -> None:
+
     lines = [
-        f"Prototypes: {prototypes}",
-        f"Max height: {height}",
-        f"Min drops: {drops}",
-        "---",
-        f"{drops}"
+        "Prototypes  Height  Min drops",
+        "----------  ------  ---------"
     ]
+    
+    for prototypes, height, drops in results:
+        lines.append(f"{prototypes:10d}  {height:6d}  {drops:9d}")
+    
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -90,8 +109,13 @@ def main(argv: list[str] | None = None) -> int:
         out_file = Path(argv[1])
     
     try:
-        prototypes, height = read_test_case(in_file)
-        drops = min_num_of_drops(prototypes, height)
+        test_cases = read_test_cases(in_file)
+        results = []
+        
+        for prototypes, height in test_cases:
+            drops = min_num_of_drops(prototypes, height)
+            results.append((prototypes, height, drops))
+            
     except OSError as exc:
         sys.stderr.write(f"Input error: {exc}\n")
         return 1
@@ -100,31 +124,37 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     
     try:
-        write_result(out_file, prototypes, height, drops)
+        write_results(out_file, results)
     except OSError as exc:
         sys.stderr.write(f"Output error: {exc}\n")
         return 1
     
-    print(f"Wrote {out_file} — {prototypes} prototype(s), height {height} → {drops} drops needed")
+    print(f"Wrote {out_file} — {len(results)} test case(s) processed")
     return 0
 
 
 def _self_check() -> None:
+
     assert min_num_of_drops(1, 100) == 100
     assert min_num_of_drops(2, 100) == 14
     assert min_num_of_drops(3, 100) == 9
     
     assert min_num_of_drops(1, 1) == 1
+    assert min_num_of_drops(2, 456) == 30
+    assert min_num_of_drops(3, 456) == 14
+    assert min_num_of_drops(4, 456) == 11
+    assert min_num_of_drops(2, 789) == 40
+    assert min_num_of_drops(3, 789) == 17
+    assert min_num_of_drops(4, 789) == 12
+    
+    assert min_num_of_drops(2, 100) <= min_num_of_drops(1, 100)
+    assert min_num_of_drops(3, 100) <= min_num_of_drops(2, 100)
+    assert min_num_of_drops(4, 456) <= min_num_of_drops(3, 456)
+    
+    assert min_num_of_drops(1, 1) == 1
     assert min_num_of_drops(2, 1) == 1
     assert min_num_of_drops(5, 1) == 1
     assert min_num_of_drops(2, 2) == 2
-    
-    result_999 = min_num_of_drops(2, 999)
-    assert result_999 > 0
-    print(f"Height 999 with 2 prototypes: {result_999} drops")
-    
-    assert min_num_of_drops(4, 100) <= min_num_of_drops(3, 100)
-    assert min_num_of_drops(10, 100) <= min_num_of_drops(5, 100)
     
     print("All self-checks passed!")
 
